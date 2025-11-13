@@ -10,8 +10,133 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <div class="chat-container">
+    <!-- 첫 페이지 (랜딩 페이지) -->
+    <div id="landingPage" class="landing-page">
+        <!-- 상단 시간 표시 -->
+        <div class="landing-status-time">9:41</div>
+        
+        <!-- 상단 우측 아이콘 영역 -->
+        <div class="landing-status-right">
+            <svg width="67" height="12" viewBox="0 0 67 12" fill="none">
+                <rect x="61" y="1" width="4" height="10" rx="1" fill="#1A1A1A" opacity="0.4"/>
+                <rect x="57" y="2" width="2" height="8" rx="1" fill="#1A1A1A"/>
+                <path d="M54 6C54 7.10457 53.1046 8 52 8C50.8954 8 50 7.10457 50 6C50 4.89543 50.8954 4 52 4C53.1046 4 54 4.89543 54 6Z" fill="#1A1A1A"/>
+                <path d="M48 3C48 4.10457 47.1046 5 46 5C44.8954 5 44 4.10457 44 3C44 1.89543 44.8954 1 46 1C47.1046 1 48 1.89543 48 3Z" fill="#1A1A1A"/>
+            </svg>
+        </div>
+        
+        <!-- 검색 아이콘 -->
+        <button class="landing-icon-search" type="button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+                <path d="M16 16L20 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </button>
+        
+        <!-- 알림 아이콘 -->
+        <button class="landing-icon-bell" type="button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+        
+        <!-- 메뉴 아이콘 -->
+        <button class="landing-icon-menu" type="button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </button>
+        
+        <!-- 메인 보라색 카드 -->
+        <div class="landing-main-card"></div>
+        
+        <!-- 검색 입력창 -->
+        <div class="landing-search-input"></div>
+        
+        <!-- 메인 텍스트 -->
+        <div class="landing-main-text">
+            <p>일상 속 투자 기회를</p>
+            <p>사진으로 발견하세요!</p>
+        </div>
+        
+        <!-- 서브 텍스트 -->
+        <div class="landing-sub-text">
+            사진 한장으로 투자 종목을 찾을 수 있다면?
+        </div>
+        
+        <!-- 주가지수 섹션 -->
+        <div class="landing-index-section">
+            <div class="index-tabs">
+                <button class="index-tab active" data-market="kr">국내</button>
+                <button class="index-tab" data-market="us">미국</button>
+            </div>
+            <div class="index-cards-container" id="indexCardsContainer">
+                <!-- 지수 카드들이 여기에 동적으로 추가됩니다 -->
+            </div>
+        </div>
+        
+        <!-- 시가총액 상위 종목 섹션 -->
+        <div class="landing-top-stocks-section">
+            <div class="top-stocks-list" id="topStocksList">
+                <!-- 상위 종목들이 여기에 동적으로 추가됩니다 -->
+            </div>
+        </div>
+        
+        <!-- 하단 네비게이션 -->
+        <div class="landing-navigation">
+            <button class="nav-item active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>탐색</span>
+            </button>
+            <button class="nav-item">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.57831 8.50903 2.99871 7.05 2.99871C5.59096 2.99871 4.19169 3.57831 3.16 4.61C2.1283 5.64169 1.54871 7.04097 1.54871 8.5C1.54871 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7564 11.2728 22.0329 10.6054C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.0621 22.0329 6.39464C21.7564 5.72718 21.351 5.12075 20.84 4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>관심</span>
+            </button>
+            <button class="nav-item">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>자산</span>
+            </button>
+            <button class="nav-item">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>혜택</span>
+            </button>
+        </div>
+        
+        <!-- 중앙 카메라 플로팅 버튼 -->
+        <button id="landingCameraFloatingButton" class="landing-camera-floating-btn" type="button">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
+            </svg>
+        </button>
+        
+        <!-- 시작 버튼 (서브 텍스트 클릭 가능) -->
+        <button id="startChatButton" class="start-chat-button-text">
+            사진 한장으로 투자 종목을 찾을 수 있다면?
+        </button>
+    </div>
+
+    <!-- 채팅 페이지 -->
+    <div id="chatPage" class="chat-container" style="display: none;">
         <div class="chat-header">
+            <button id="homeButton" class="home-button" type="button" aria-label="홈으로">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
             <h1>주식 챗봇</h1>
         </div>
         <div class="chat-messages" id="chatMessages">
@@ -25,18 +150,39 @@
         <div class="chat-input-container">
             <input type="file" id="imageUploadInput" accept="image/*" hidden />
             <button id="imageUploadButton" type="button" aria-label="이미지 업로드">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 7H7L9 4H15L17 7H20C21.1 7 22 7.9 22 9V19C22 20.1 21.1 21 20 21H4C2.9 21 2 20.1 2 19V9C2 7.9 2.9 7 4 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M12 17C13.6569 17 15 15.6569 15 14C15 12.3431 13.6569 11 12 11C10.3431 11 9 12.3431 9 14C9 15.6569 10.3431 17 12 17Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <path d="M12 8V16M8 12H16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
             </button>
-            <input type="text" id="userInput" placeholder="종목명 또는 심볼을 입력하세요..." />
+            <input type="text" id="userInput" placeholder="PicMe에게 물어보세요" />
             <button id="sendButton">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </button>
+        </div>
+        
+        <!-- 이미지 선택 모달 -->
+        <div id="imageSelectModal" class="image-select-modal" style="display: none;">
+            <div class="image-select-modal-content">
+                <button id="cameraButton" class="image-select-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
+                    </svg>
+                    <span>카메라</span>
+                </button>
+                <button id="albumButton" class="image-select-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <path d="M3 9L9 3H15L21 9V19H3V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
+                    </svg>
+                    <span>앨범</span>
+                </button>
+            </div>
         </div>
     </div>
     <script src="js/script.js"></script>

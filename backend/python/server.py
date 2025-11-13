@@ -2148,6 +2148,142 @@ def test_chat():
         return jsonify({"error": "요청 처리 중 오류가 발생했습니다."}), 500
 
 
+@app.route('/api/market-indices/<market>', methods=['GET'])
+def get_market_indices(market):
+    """국내/미국 주가지수 데이터 반환"""
+    try:
+        if market == 'kr':
+            # 국내 지수: KOSPI, KOSDAQ, KOSPI200
+            indices = ['KS11', 'KQ11', 'KS200']  # FinanceDataReader 코드
+            index_names = {
+                'KS11': '코스피',
+                'KQ11': '코스닥',
+                'KS200': '코스피200'
+            }
+        elif market == 'us':
+            # 미국 지수: S&P 500, NASDAQ, Dow Jones
+            indices = ['US500', 'IXIC', 'DJI']  # FinanceDataReader 코드
+            index_names = {
+                'US500': 'S&P 500',
+                'IXIC': '나스닥',
+                'DJI': '다우존스'
+            }
+        else:
+            return jsonify({'error': 'Invalid market'}), 400
+        
+        result = []
+        today = datetime.now().date()
+        
+        for idx_code in indices:
+            try:
+                # 최근 2일 데이터 가져오기 (전일 대비 계산용)
+                df = fdr.DataReader(idx_code, today - timedelta(days=5), today)
+                
+                if df.empty:
+                    continue
+                
+                # 최신 데이터
+                latest = df.iloc[-1]
+                prev = df.iloc[-2] if len(df) > 1 else latest
+                
+                current_value = float(latest['Close'])
+                prev_value = float(prev['Close'])
+                change = current_value - prev_value
+                change_percent = (change / prev_value * 100) if prev_value != 0 else 0
+                
+                result.append({
+                    'code': idx_code,
+                    'name': index_names.get(idx_code, idx_code),
+                    'value': round(current_value, 2),
+                    'change': round(change, 2),
+                    'changePercent': round(change_percent, 2)
+                })
+            except Exception as e:
+                print(f'Error fetching {idx_code}: {e}')
+                continue
+        
+        return jsonify({'indices': result})
+    
+    except Exception as e:
+        print(f'Error in get_market_indices: {e}')
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/top-stocks-by-market-cap', methods=['GET'])
+def get_top_stocks_by_market_cap():
+    """시가총액 기준 상위 5개 종목 반환"""
+    try:
+        # KRX 전체 종목 리스트 가져오기
+        krx_list = fdr.StockListing('KRX')
+        
+        if krx_list is None or krx_list.empty:
+            return jsonify({'error': '종목 데이터를 가져올 수 없습니다.'}), 500
+        
+        # 시가총액 컬럼 찾기 (영문/한글 모두 확인)
+        market_cap_col = None
+        for col in ['Marcap', '시가총액', 'MarketCap', 'market_cap']:
+            if col in krx_list.columns:
+                market_cap_col = col
+                break
+        
+        if not market_cap_col:
+            return jsonify({'error': '시가총액 정보를 찾을 수 없습니다.'}), 500
+        
+        # 종목명, 종목코드 컬럼 찾기
+        name_col = 'Name' if 'Name' in krx_list.columns else ('종목명' if '종목명' in krx_list.columns else None)
+        code_col = 'Code' if 'Code' in krx_list.columns else ('Symbol' if 'Symbol' in krx_list.columns else None)
+        
+        if not name_col or not code_col:
+            return jsonify({'error': '종목 정보를 찾을 수 없습니다.'}), 500
+        
+        # 시가총액 기준으로 정렬 (내림차순)
+        sorted_df = krx_list.sort_values(by=market_cap_col, ascending=False)
+        
+        # 상위 5개 선택
+        top_5 = sorted_df.head(5)
+        
+        result = []
+        for _, row in top_5.iterrows():
+            try:
+                symbol = str(row[code_col]).zfill(6)  # 6자리 종목코드
+                name = str(row[name_col])
+                market_cap = float(row[market_cap_col]) if pd.notna(row[market_cap_col]) else 0
+                
+                # 현재가 가져오기
+                today = datetime.now().date()
+                try:
+                    price_df = fdr.DataReader(symbol, today - timedelta(days=2), today)
+                    if not price_df.empty:
+                        current_price = float(price_df.iloc[-1]['Close'])
+                        prev_price = float(price_df.iloc[-2]['Close']) if len(price_df) > 1 else current_price
+                        change = current_price - prev_price
+                        change_percent = (change / prev_price * 100) if prev_price != 0 else 0
+                    else:
+                        current_price = 0
+                        change = 0
+                        change_percent = 0
+                except:
+                    current_price = 0
+                    change = 0
+                    change_percent = 0
+                
+                result.append({
+                    'symbol': symbol,
+                    'name': name,
+                    'marketCap': round(market_cap / 100000000, 2),  # 억원 단위로 변환
+                    'price': round(current_price, 0),
+                    'change': round(change, 0),
+                    'changePercent': round(change_percent, 2)
+                })
+            except Exception as e:
+                print(f'Error processing stock {row.get(name_col, "unknown")}: {e}')
+                continue
+        
+        return jsonify({'stocks': result})
+    
+    except Exception as e:
+        print(f'Error in get_top_stocks_by_market_cap: {e}')
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'ok'})

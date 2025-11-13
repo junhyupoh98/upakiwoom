@@ -649,6 +649,20 @@ function addFinancialMessage(companyName, symbol, financialData) {
                 const company = btn.dataset.company;
                 const symbol = btn.dataset.symbol;
                 
+                // 사용자 메시지 먼저 표시
+                let userMessage = '';
+                if (questionType === 'operating') {
+                    userMessage = '영업이익';
+                } else if (questionType === 'revenue') {
+                    userMessage = '매출액';
+                } else if (questionType === 'debt') {
+                    userMessage = '부채비율';
+                }
+                
+                if (userMessage) {
+                    addMessage(userMessage, 'user');
+                }
+                
                 if (questionType === 'operating') {
                     // 영업이익 상세 카드 표시
                     addOperatingIncomeCard(company, symbol);
@@ -1107,6 +1121,9 @@ async function addStockMessage(stockData) {
     
     if (favoriteBtn) {
         favoriteBtn.addEventListener('click', () => {
+            // 사용자 메시지 먼저 표시
+            addMessage('관심종목', 'user');
+            
             // TODO: 관심종목 기능 구현
             console.log('관심종목 버튼 클릭:', stockData.symbol, stockData.name);
         });
@@ -1114,6 +1131,9 @@ async function addStockMessage(stockData) {
     
     if (financialBtn) {
         financialBtn.addEventListener('click', async () => {
+            // 사용자 메시지 먼저 표시
+            addMessage('재무제표', 'user');
+            
             // 버튼 비활성화
             financialBtn.disabled = true;
             financialBtn.style.opacity = '0.6';
@@ -1141,6 +1161,9 @@ async function addStockMessage(stockData) {
     
     if (newsBtn) {
         newsBtn.addEventListener('click', async () => {
+            // 사용자 메시지 먼저 표시
+            addMessage('뉴스', 'user');
+            
             // 버튼 비활성화
             newsBtn.disabled = true;
             newsBtn.style.opacity = '0.6';
@@ -1551,11 +1574,50 @@ function getBotResponse(message) {
 
 // DOM 로드 후 초기화
 document.addEventListener('DOMContentLoaded', () => {
-    // DOM 요소 선택
+    // imageUploadInput 먼저 가져오기 (랜딩 페이지와 채팅 페이지 모두에서 사용)
+    imageUploadInput = document.getElementById('imageUploadInput');
+    
+    // 페이지 전환 관련 요소
+    const landingPage = document.getElementById('landingPage');
+    const chatPage = document.getElementById('chatPage');
+    const startChatButton = document.getElementById('startChatButton');
+    const landingCameraFloatingButton = document.getElementById('landingCameraFloatingButton');
+    const homeButton = document.getElementById('homeButton');
+    
+    // 시작 버튼 클릭 시 채팅 페이지로 전환
+    if (startChatButton) {
+        startChatButton.addEventListener('click', () => {
+            if (landingPage && chatPage) {
+                landingPage.style.display = 'none';
+                chatPage.style.display = 'flex';
+            }
+        });
+    }
+    
+    // 랜딩 페이지 카메라 플로팅 버튼 클릭 시 이미지 선택 모달 열기
+    if (landingCameraFloatingButton) {
+        landingCameraFloatingButton.addEventListener('click', () => {
+            const landingPage = document.getElementById('landingPage');
+            const chatPage = document.getElementById('chatPage');
+            if (landingPage && chatPage) {
+                landingPage.style.display = 'none';
+                chatPage.style.display = 'flex';
+                // 이미지 선택 모달 열기
+                setTimeout(() => {
+                    const imageSelectModal = document.getElementById('imageSelectModal');
+                    if (imageSelectModal) {
+                        imageSelectModal.style.display = 'flex';
+                    }
+                }, 100);
+            }
+        });
+    }
+    
+    
+    // DOM 요소 선택 (채팅 페이지)
     chatMessages = document.getElementById('chatMessages');
     userInput = document.getElementById('userInput');
     sendButton = document.getElementById('sendButton');
-    imageUploadInput = document.getElementById('imageUploadInput');
     imageUploadButton = document.getElementById('imageUploadButton');
     
     // 요소가 존재하는지 확인
@@ -1567,14 +1629,53 @@ document.addEventListener('DOMContentLoaded', () => {
     // 이벤트 리스너 등록
     sendButton.addEventListener('click', sendMessage);
 
+    // 이미지 선택 모달 요소
+    const imageSelectModal = document.getElementById('imageSelectModal');
+    const cameraButton = document.getElementById('cameraButton');
+    const albumButton = document.getElementById('albumButton');
+    
+    // 플러스 버튼 클릭 시 모달 표시
     imageUploadButton.addEventListener('click', () => {
-        imageUploadInput.click();
+        if (imageSelectModal) {
+            imageSelectModal.style.display = 'flex';
+        }
     });
+    
+    // 모달 배경 클릭 시 닫기
+    imageSelectModal.addEventListener('click', (e) => {
+        if (e.target === imageSelectModal) {
+            imageSelectModal.style.display = 'none';
+        }
+    });
+    
+    // 카메라 버튼 (빈 버튼)
+    if (cameraButton) {
+        cameraButton.addEventListener('click', () => {
+            // TODO: 카메라 기능 구현
+            console.log('카메라 버튼 클릭');
+            imageSelectModal.style.display = 'none';
+        });
+    }
+    
+    // 앨범 버튼 - 기존 이미지 업로드 기능 연결
+    if (albumButton) {
+        albumButton.addEventListener('click', () => {
+            imageSelectModal.style.display = 'none';
+            imageUploadInput.click();
+        });
+    }
 
     imageUploadInput.addEventListener('change', (event) => {
         const target = event.target;
         const file = target.files && target.files[0];
         if (file) {
+            // 랜딩 페이지에서 이미지 선택 시 채팅 페이지로 전환
+            const landingPage = document.getElementById('landingPage');
+            const chatPage = document.getElementById('chatPage');
+            if (landingPage && chatPage && landingPage.style.display !== 'none') {
+                landingPage.style.display = 'none';
+                chatPage.style.display = 'flex';
+            }
             handleImageFile(file);
         }
         target.value = '';
@@ -1629,5 +1730,172 @@ document.addEventListener('DOMContentLoaded', () => {
         sendButton.style.transform = 'scale(1)';
         sendMessage();
     }, { passive: false });
+    
+    // 홈화면 지수 데이터 로드
+    loadMarketIndices('kr');
+    
+    // 시가총액 상위 종목 로드
+    loadTopStocksByMarketCap();
+    
+    // 지수 탭 클릭 이벤트
+    const indexTabs = document.querySelectorAll('.index-tab');
+    indexTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            indexTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            const market = tab.dataset.market;
+            loadMarketIndices(market);
+        });
+    });
+    
+    // 홈 버튼 클릭 이벤트
+    if (homeButton) {
+        homeButton.addEventListener('click', () => {
+            if (landingPage && chatPage) {
+                chatPage.style.display = 'none';
+                landingPage.style.display = 'block';
+                // 채팅 메시지 스크롤을 맨 위로
+                if (chatMessages) {
+                    chatMessages.scrollTop = 0;
+                }
+            }
+        });
+    }
 });
+
+// 지수 데이터 로드 함수
+async function loadMarketIndices(market) {
+    const container = document.getElementById('indexCardsContainer');
+    if (!container) return;
+    
+    // 로딩 표시
+    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">로딩 중...</div>';
+    
+    try {
+        const response = await fetch(`${PYTHON_API_URL}/market-indices/${market}`);
+        if (!response.ok) {
+            throw new Error('지수 데이터를 가져올 수 없습니다.');
+        }
+        
+        const data = await response.json();
+        const indices = data.indices || [];
+        
+        if (indices.length === 0) {
+            container.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">데이터가 없습니다.</div>';
+            return;
+        }
+        
+        // 카드 생성
+        container.innerHTML = '';
+        indices.forEach(index => {
+            const card = createIndexCard(index);
+            container.appendChild(card);
+        });
+    } catch (error) {
+        console.error('지수 데이터 로드 오류:', error);
+        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #e74c3c;">데이터를 불러올 수 없습니다.</div>';
+    }
+}
+
+// 지수 카드 생성 함수
+function createIndexCard(index) {
+    const card = document.createElement('div');
+    card.className = 'index-card';
+    
+    const change = index.change || 0;
+    const changePercent = index.changePercent || 0;
+    const isPositive = change > 0;
+    const isNegative = change < 0;
+    const changeClass = isPositive ? 'positive' : (isNegative ? 'negative' : 'neutral');
+    const changeSign = isPositive ? '+' : '';
+    
+    card.innerHTML = `
+        <div class="index-card-name">${index.name}</div>
+        <div class="index-card-value">${index.value.toLocaleString()}</div>
+        <div class="index-card-change ${changeClass}">
+            ${changeSign}${change.toFixed(2)}(${changeSign}${changePercent.toFixed(2)}%)
+        </div>
+    `;
+    
+    return card;
+}
+
+// 시가총액 상위 종목 로드 함수
+async function loadTopStocksByMarketCap() {
+    const container = document.getElementById('topStocksList');
+    if (!container) return;
+    
+    // 로딩 표시
+    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">로딩 중...</div>';
+    
+    try {
+        const response = await fetch(`${PYTHON_API_URL}/top-stocks-by-market-cap`);
+        if (!response.ok) {
+            throw new Error('시가총액 상위 종목 데이터를 가져올 수 없습니다.');
+        }
+        
+        const data = await response.json();
+        const stocks = data.stocks || [];
+        
+        if (stocks.length === 0) {
+            container.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">데이터가 없습니다.</div>';
+            return;
+        }
+        
+        // 종목 리스트 생성
+        container.innerHTML = '';
+        stocks.forEach(stock => {
+            const item = createTopStockItem(stock);
+            container.appendChild(item);
+        });
+    } catch (error) {
+        console.error('시가총액 상위 종목 로드 오류:', error);
+        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #e74c3c;">데이터를 불러올 수 없습니다.</div>';
+    }
+}
+
+// 시가총액 상위 종목 아이템 생성 함수
+function createTopStockItem(stock) {
+    const item = document.createElement('div');
+    item.className = 'top-stock-item';
+    
+    const change = stock.change || 0;
+    const changePercent = stock.changePercent || 0;
+    const isPositive = change > 0;
+    const isNegative = change < 0;
+    const changeClass = isPositive ? 'positive' : (isNegative ? 'negative' : 'neutral');
+    const changeSign = isPositive ? '+' : '';
+    
+    item.innerHTML = `
+        <div class="top-stock-left">
+            <div class="top-stock-name">${stock.name}</div>
+            <div class="top-stock-market-cap">시가총액 ${stock.marketCap.toLocaleString()}억원</div>
+        </div>
+        <div class="top-stock-right">
+            <div class="top-stock-price">${stock.price.toLocaleString()}원</div>
+            <div class="top-stock-change ${changeClass}">
+                ${changeSign}${change.toLocaleString()}(${changeSign}${changePercent.toFixed(2)}%)
+            </div>
+        </div>
+    `;
+    
+    // 클릭 시 해당 종목 검색
+    item.addEventListener('click', () => {
+        const landingPage = document.getElementById('landingPage');
+        const chatPage = document.getElementById('chatPage');
+        if (landingPage && chatPage) {
+            landingPage.style.display = 'none';
+            chatPage.style.display = 'flex';
+            // 종목명으로 검색
+            setTimeout(() => {
+                if (userInput) {
+                    userInput.value = stock.name;
+                    sendMessage();
+                }
+            }, 100);
+        }
+    });
+    
+    return item;
+}
 
