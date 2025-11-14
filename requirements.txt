@@ -10,4 +10,7 @@ lxml_html_clean>=0.1.0
 python-dotenv>=1.0.0
 google-auth>=2.23.0
 chromadb>=0.5.3
+google-cloud-vision>=3.4.0
+google-generativeai>=0.3.0
+Pillow>=10.0.0
 
