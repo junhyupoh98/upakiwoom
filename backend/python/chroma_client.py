@@ -44,6 +44,11 @@ def get_chroma_client() -> ClientAPI:
     """지연 초기화된 Chroma CloudClient 반환"""
     global _client
     if _client is None:
+        print(f'[DEBUG] ChromaDB 클라이언트 초기화 시작...')
+        print(f'[DEBUG] CHROMADB_API_KEY 설정 여부: {bool(CHROMADB_API_KEY)}')
+        print(f'[DEBUG] CHROMADB_TENANT 설정 여부: {bool(CHROMADB_TENANT)}')
+        print(f'[DEBUG] CHROMADB_DATABASE 설정 여부: {bool(CHROMADB_DATABASE)}')
+        
         if not CHROMADB_API_KEY:
             raise RuntimeError("CHROMADB_API_KEY 환경 변수가 설정되어 있지 않습니다.")
         if not CHROMADB_TENANT:
@@ -51,11 +56,19 @@ def get_chroma_client() -> ClientAPI:
         if not CHROMADB_DATABASE:
             raise RuntimeError("CHROMADB_DATABASE 환경 변수가 설정되어 있지 않습니다.")
 
-        _client = chromadb.CloudClient(
-            api_key=CHROMADB_API_KEY,
-            tenant=CHROMADB_TENANT,
-            database=CHROMADB_DATABASE,
-        )
+        try:
+            print(f'[DEBUG] ChromaDB CloudClient 생성 시도...')
+            _client = chromadb.CloudClient(
+                api_key=CHROMADB_API_KEY,
+                tenant=CHROMADB_TENANT,
+                database=CHROMADB_DATABASE,
+            )
+            print(f'[OK] ChromaDB 클라이언트 생성 성공')
+        except Exception as e:
+            print(f'[ERROR] ChromaDB 클라이언트 생성 실패: {e}')
+            import traceback
+            traceback.print_exc()
+            raise
 
     return _client
 
@@ -73,8 +86,16 @@ def get_kr_news_collection() -> Collection:
     """한국 주식 뉴스 요약이 저장된 컬렉션 핸들 반환"""
     global _kr_news_collection
     if _kr_news_collection is None:
-        client = get_chroma_client()
-        _kr_news_collection = client.get_collection(KR_NEWS_COLLECTION)
+        print(f'[DEBUG] KR 뉴스 컬렉션 로드 시도: {KR_NEWS_COLLECTION}')
+        try:
+            client = get_chroma_client()
+            _kr_news_collection = client.get_collection(KR_NEWS_COLLECTION)
+            print(f'[OK] KR 뉴스 컬렉션 로드 성공: {KR_NEWS_COLLECTION}')
+        except Exception as e:
+            print(f'[ERROR] KR 뉴스 컬렉션 로드 실패: {e}')
+            import traceback
+            traceback.print_exc()
+            raise
     return _kr_news_collection
 
 def get_earnings_call_collection() -> Collection:
@@ -140,8 +161,16 @@ def get_kr_fin_collection() -> Collection:
     """한국 주식 재무 데이터가 저장된 컬렉션 핸들 반환"""
     global _kr_fin_collection
     if _kr_fin_collection is None:
-        client = get_chroma_client()
-        _kr_fin_collection = client.get_collection(KR_FIN_COLLECTION)
+        print(f'[DEBUG] KR 재무 컬렉션 로드 시도: {KR_FIN_COLLECTION}')
+        try:
+            client = get_chroma_client()
+            _kr_fin_collection = client.get_collection(KR_FIN_COLLECTION)
+            print(f'[OK] KR 재무 컬렉션 로드 성공: {KR_FIN_COLLECTION}')
+        except Exception as e:
+            print(f'[ERROR] KR 재무 컬렉션 로드 실패: {e}')
+            import traceback
+            traceback.print_exc()
+            raise
     return _kr_fin_collection
 
 def _parse_date_for_sort(metadata: Dict[str, Any]) -> Any:
@@ -234,9 +263,13 @@ def fetch_kr_stock_news(symbol: str, limit: int = 3) -> List[Dict[str, Any]]:
         return []
 
     try:
+        print(f'[DEBUG] KR 뉴스 컬렉션 로드 시도 (심볼: {clean_symbol})')
         collection = get_kr_news_collection()
+        print(f'[OK] KR 뉴스 컬렉션 로드 성공')
     except Exception as exc:
-        print(f"[DEBUG] KR Chroma news collection init error: {exc}")
+        print(f"[ERROR] KR Chroma news collection init error: {exc}")
+        import traceback
+        traceback.print_exc()
         return []
 
     # ticker6로 필터링 (6자리 티커)
@@ -761,9 +794,13 @@ def fetch_kr_financials_from_chroma(symbol: str) -> Optional[Dict[str, Any]]:
         return None
 
     try:
+        print(f'[DEBUG] KR 재무 컬렉션 로드 시도 (심볼: {symbol})')
         collection = get_kr_fin_collection()
+        print(f'[OK] KR 재무 컬렉션 로드 성공')
     except Exception as exc:
-        print(f"[DEBUG] KR Chroma client init error: {exc}")
+        print(f"[ERROR] KR Chroma client init error: {exc}")
+        import traceback
+        traceback.print_exc()
         return None
 
     try:
