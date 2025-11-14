@@ -16,6 +16,10 @@ from openai import OpenAI
 from newspaper import Article, ArticleException
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
+from pathlib import Path
+
+# 환경 변수 로드를 먼저 수행 (chroma_client.py가 모듈 임포트 시 환경 변수를 읽으므로)
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 # ChromaDB 관련 함수 - optional (Vercel에서는 크기 제한으로 인해 제외)
 print('[INFO] ChromaDB 모듈 로드 시도 중...')
@@ -98,8 +102,7 @@ try:
     from .vision_bridge import analyze_product_from_image
 except ImportError:
     from vision_bridge import analyze_product_from_image  # type: ignore
-from pathlib import Path
-load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 # DART API는 requests로 직접 호출
 
 app = Flask(__name__)
