@@ -21,10 +21,20 @@ from dotenv import load_dotenv
 print('[INFO] ChromaDB 모듈 로드 시도 중...')
 CHROMADB_AVAILABLE = False
 try:
-    # 상대 import 시도
+    import sys
+    import os
+    
+    # 현재 파일의 디렉토리 경로
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    print(f'[DEBUG] server.py 위치: {current_dir}')
+    
+    # 직접 import를 먼저 시도 (AWS EB에서 가장 확실한 방법)
     try:
-        print('[DEBUG] ChromaDB 상대 import 시도: from .chroma_client import ...')
-        from .chroma_client import (
+        print('[DEBUG] ChromaDB 직접 import 시도: from chroma_client import ...')
+        # 현재 디렉토리를 sys.path에 추가
+        if current_dir not in sys.path:
+            sys.path.insert(0, current_dir)
+        from chroma_client import (
             fetch_us_stock_news,
             fetch_kr_stock_news,
             fetch_us_financials_from_chroma,
@@ -32,13 +42,13 @@ try:
             fetch_earnings_call_summary,
         )
         CHROMADB_AVAILABLE = True
-        print('[OK] ChromaDB 모듈 로드 성공 (상대 import)')
-    except ImportError as e1:
-        print(f'[DEBUG] ChromaDB 상대 import 실패: {e1}')
-        # 절대 import 시도
+        print('[OK] ChromaDB 모듈 로드 성공 (직접 import)')
+    except ImportError as e3:
+        print(f'[DEBUG] ChromaDB 직접 import 실패: {e3}')
+        # 상대 import 시도
         try:
-            print('[DEBUG] ChromaDB 절대 import 시도: from backend.python.chroma_client import ...')
-            from backend.python.chroma_client import (
+            print('[DEBUG] ChromaDB 상대 import 시도: from .chroma_client import ...')
+            from .chroma_client import (
                 fetch_us_stock_news,
                 fetch_kr_stock_news,
                 fetch_us_financials_from_chroma,
@@ -46,18 +56,13 @@ try:
                 fetch_earnings_call_summary,
             )
             CHROMADB_AVAILABLE = True
-            print('[OK] ChromaDB 모듈 로드 성공 (절대 import)')
-        except ImportError as e2:
-            print(f'[DEBUG] ChromaDB 절대 import 실패: {e2}')
-            # 직접 import 시도
+            print('[OK] ChromaDB 모듈 로드 성공 (상대 import)')
+        except ImportError as e1:
+            print(f'[DEBUG] ChromaDB 상대 import 실패: {e1}')
+            # 절대 import 시도
             try:
-                print('[DEBUG] ChromaDB 직접 import 시도: from chroma_client import ...')
-                import sys
-                import os
-                current_dir = os.path.dirname(os.path.abspath(__file__))
-                print(f'[DEBUG] 현재 디렉토리: {current_dir}')
-                sys.path.insert(0, current_dir)
-                from chroma_client import (
+                print('[DEBUG] ChromaDB 절대 import 시도: from backend.python.chroma_client import ...')
+                from backend.python.chroma_client import (
                     fetch_us_stock_news,
                     fetch_kr_stock_news,
                     fetch_us_financials_from_chroma,
@@ -65,10 +70,10 @@ try:
                     fetch_earnings_call_summary,
                 )
                 CHROMADB_AVAILABLE = True
-                print('[OK] ChromaDB 모듈 로드 성공 (직접 import)')
-            except ImportError as e3:
-                print(f'[WARN] ChromaDB 모듈 로드 실패 - 상대: {e1}, 절대: {e2}, 직접: {e3}')
-                raise e3
+                print('[OK] ChromaDB 모듈 로드 성공 (절대 import)')
+            except ImportError as e2:
+                print(f'[WARN] ChromaDB 모듈 로드 실패 - 직접: {e3}, 상대: {e1}, 절대: {e2}')
+                raise e2
 except Exception as e:
     # ChromaDB가 설치되지 않은 경우 또는 다른 오류 (예: Vercel 배포 시)
     CHROMADB_AVAILABLE = False
