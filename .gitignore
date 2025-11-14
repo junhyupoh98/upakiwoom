@@ -1,22 +1,19 @@
-# Dependencies
-node_modules/
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
+env/
+venv/
+ENV/
+.venv
 
-# Cache
-cache/
-*.zip
-*.cache
-
-# Environment variables
-.env
-.env.local
-.env.*.local
-.envrc
-.venv/
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # IDE
 .vscode/
@@ -25,24 +22,31 @@ cache/
 *.swo
 *~
 
+# 환경 변수
+.env
+.env.local
+
+# 로그
+*.log
+
+# 캐시
+cache/
+*.cache
+
 # OS
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
-logs/
+# 배포 설정 (민감 정보)
+# frontend/config.js  # 공개 URL이므로 Git에 포함
+.ebextensions/*.secret
 
-# Build
-dist/
-build/
-*.egg-info/
+# 자격 증명 파일
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
 
-# Temporary files
+# 임시 파일
 *.tmp
 *.temp
-
-# Sensitive credentials
-my-project-41019-475914-bd9a8d61852f.json
-vision/my-project-41019-475914-bd9a8d61852f.json
-gen-lang-client-0148464155-c0c4027f6389.json
