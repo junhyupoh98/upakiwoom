@@ -7,12 +7,6 @@ import chromadb
 from chromadb.api import ClientAPI
 from chromadb.api.models.Collection import Collection
 
-# 환경 변수 로드 시 로그 추가 (디버깅용)
-print('[DEBUG] chroma_client.py 모듈 로드 시작')
-print(f'[DEBUG] 환경 변수 확인 - CHROMADB_API_KEY: {bool(os.getenv("CHROMADB_API_KEY"))}')
-print(f'[DEBUG] 환경 변수 확인 - CHROMADB_TENANT: {bool(os.getenv("CHROMADB_TENANT"))}')
-print(f'[DEBUG] 환경 변수 확인 - CHROMADB_DATABASE: {bool(os.getenv("CHROMADB_DATABASE"))}')
-
 CHROMADB_API_KEY = os.getenv(
     "CHROMADB_API_KEY",
     "ck-BGYLZPX4So3TCKT9MLwvDB3GSdbGJzgv4eM4Lpca9f8s",
@@ -25,10 +19,6 @@ CHROMADB_DATABASE = os.getenv(
     "CHROMADB_DATABASE",
     "project_pic",
 )
-
-print(f'[DEBUG] ChromaDB 설정 값 - API_KEY 설정됨: {bool(CHROMADB_API_KEY)}')
-print(f'[DEBUG] ChromaDB 설정 값 - TENANT 설정됨: {bool(CHROMADB_TENANT)}')
-print(f'[DEBUG] ChromaDB 설정 값 - DATABASE 설정됨: {bool(CHROMADB_DATABASE)}')
 US_NEWS_COLLECTION = os.getenv(
     "CHROMADB_US_NEWS_COLLECTION",
     "USnews_summary_ko",
