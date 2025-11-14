@@ -18,10 +18,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 
 # ChromaDB 관련 함수 - optional (Vercel에서는 크기 제한으로 인해 제외)
+print('[INFO] ChromaDB 모듈 로드 시도 중...')
 CHROMADB_AVAILABLE = False
 try:
     # 상대 import 시도
     try:
+        print('[DEBUG] ChromaDB 상대 import 시도: from .chroma_client import ...')
         from .chroma_client import (
             fetch_us_stock_news,
             fetch_kr_stock_news,
@@ -32,8 +34,10 @@ try:
         CHROMADB_AVAILABLE = True
         print('[OK] ChromaDB 모듈 로드 성공 (상대 import)')
     except ImportError as e1:
+        print(f'[DEBUG] ChromaDB 상대 import 실패: {e1}')
         # 절대 import 시도
         try:
+            print('[DEBUG] ChromaDB 절대 import 시도: from backend.python.chroma_client import ...')
             from backend.python.chroma_client import (
                 fetch_us_stock_news,
                 fetch_kr_stock_news,
@@ -44,11 +48,15 @@ try:
             CHROMADB_AVAILABLE = True
             print('[OK] ChromaDB 모듈 로드 성공 (절대 import)')
         except ImportError as e2:
+            print(f'[DEBUG] ChromaDB 절대 import 실패: {e2}')
             # 직접 import 시도
             try:
+                print('[DEBUG] ChromaDB 직접 import 시도: from chroma_client import ...')
                 import sys
                 import os
-                sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                print(f'[DEBUG] 현재 디렉토리: {current_dir}')
+                sys.path.insert(0, current_dir)
                 from chroma_client import (
                     fetch_us_stock_news,
                     fetch_kr_stock_news,
@@ -78,6 +86,8 @@ except Exception as e:
         return None
     def fetch_earnings_call_summary(*args, **kwargs):
         return None
+
+print(f'[INFO] ChromaDB 사용 가능 여부: {CHROMADB_AVAILABLE}')
 
 try:
     from .vision_bridge import analyze_product_from_image
