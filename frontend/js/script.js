@@ -10,11 +10,11 @@ function getApiUrls() {
     
     // 프로덕션에서는 Vercel 프록시 사용 (HTTPS 지원)
     const API_BASE_URL = isProduction 
-        ? `${window.location.origin}/api/proxy?path=`  // Vercel 프록시 사용
+        ? `${window.location.origin}/api/proxy`  // Vercel 프록시 사용 (경로는 buildApiUrl에서 추가)
         : 'http://localhost:3000/api';     // 로컬: Node 서버
     
     const PYTHON_API_URL = isProduction 
-        ? `${window.location.origin}/api/proxy?path=`  // Vercel 프록시 사용
+        ? `${window.location.origin}/api/proxy`  // Vercel 프록시 사용 (경로는 buildApiUrl에서 추가)
         : 'http://localhost:5000/api';     // 로컬: Python Flask 서버
     
     return { API_BASE_URL, PYTHON_API_URL };
@@ -32,9 +32,20 @@ function buildApiUrl(baseUrl, path) {
     if (isProduction && baseUrl.includes('/api/proxy')) {
         // 경로를 URL 인코딩하여 프록시 파라미터로 전달
         const encodedPath = encodeURIComponent(path);
-        // baseUrl이 이미 '?path='로 끝나는지 확인
-        const separator = baseUrl.includes('?') ? '&' : '?';
-        const url = `${baseUrl}${separator}path=${encodedPath}`;
+        // baseUrl이 이미 '?path='로 끝나는지 확인하고 처리
+        let url;
+        if (baseUrl.includes('?path=')) {
+            // 이미 ?path=가 있으면 그냥 경로만 추가 (중복 방지)
+            // 하지만 baseUrl이 이미 ?path=로 끝나므로 경로를 교체해야 함
+            const baseUrlWithoutPath = baseUrl.split('?path=')[0];
+            url = `${baseUrlWithoutPath}?path=${encodedPath}`;
+        } else if (baseUrl.includes('?')) {
+            // 다른 쿼리 파라미터가 있으면 & 사용
+            url = `${baseUrl}&path=${encodedPath}`;
+        } else {
+            // 쿼리 파라미터가 없으면 ? 사용
+            url = `${baseUrl}?path=${encodedPath}`;
+        }
         console.log('[buildApiUrl] 프록시 URL 생성:', { baseUrl, path, encodedPath, url });
         return url;
     }
