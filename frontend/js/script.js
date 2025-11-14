@@ -8,12 +8,13 @@ function getApiUrls() {
     // config.js 파일 예시: window.AWS_BACKEND_URL = 'https://your-eb-app.elasticbeanstalk.com';
     const AWS_BACKEND_URL = window.AWS_BACKEND_URL || null;
     
+    // 프로덕션에서는 Vercel 프록시 사용 (HTTPS 지원)
     const API_BASE_URL = isProduction 
-        ? (AWS_BACKEND_URL ? `${AWS_BACKEND_URL}/api` : `${window.location.origin}/api`)  // AWS 백엔드 또는 Vercel
+        ? `${window.location.origin}/api/proxy?path=`  // Vercel 프록시 사용
         : 'http://localhost:3000/api';     // 로컬: Node 서버
     
     const PYTHON_API_URL = isProduction 
-        ? (AWS_BACKEND_URL ? `${AWS_BACKEND_URL}/api` : `${window.location.origin}/api`)  // AWS 백엔드 또는 Vercel
+        ? `${window.location.origin}/api/proxy?path=`  // Vercel 프록시 사용
         : 'http://localhost:5000/api';     // 로컬: Python Flask 서버
     
     return { API_BASE_URL, PYTHON_API_URL };
@@ -22,6 +23,21 @@ function getApiUrls() {
 // API URL 변수 (초기값 설정)
 let API_BASE_URL = getApiUrls().API_BASE_URL;
 let PYTHON_API_URL = getApiUrls().PYTHON_API_URL;
+
+// API URL 헬퍼 함수 (프록시 사용 시 경로 인코딩)
+function buildApiUrl(baseUrl, path) {
+    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    
+    // 프로덕션에서 프록시 사용 시
+    if (isProduction && baseUrl.includes('/api/proxy?path=')) {
+        // 경로를 URL 인코딩하여 프록시 파라미터로 전달
+        const encodedPath = encodeURIComponent(path);
+        return `${baseUrl}${encodedPath}`;
+    }
+    
+    // 로컬 또는 직접 URL 사용 시
+    return `${baseUrl}/${path}`;
+}
 
 // API URL을 동적으로 가져오는 함수 (config.js 로드 후 실행)
 function initializeApiUrls() {
@@ -119,8 +135,14 @@ function displayImagePreviewMessage(file) {
 async function requestVisionAnalysis(file) {
     const formData = new FormData();
     formData.append('file', file, file.name || 'image.jpg');
+    
+    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    // FormData는 프록시를 통과할 수 없으므로, 프로덕션에서는 직접 AWS URL 사용 (CORS 허용 필요)
+    const visionUrl = isProduction 
+        ? 'http://kdafinal-backend-env.eba-spmee7zz.ap-northeast-2.elasticbeanstalk.com/api/vision/analyze-image'
+        : buildApiUrl(PYTHON_API_URL, 'vision/analyze-image');
 
-    const response = await fetch(`${PYTHON_API_URL}/vision/analyze-image`, {
+    const response = await fetch(visionUrl, {
         method: 'POST',
         body: formData
     });
@@ -452,7 +474,7 @@ function parseMultipleStocks(message) {
 // 주가 정보 가져오기
 async function fetchStockData(query) {
     try {
-        const response = await fetch(`${API_BASE_URL}/stock/${encodeURIComponent(query)}`);
+        const response = await fetch(buildApiUrl(API_BASE_URL, `stock/${encodeURIComponent(query)}`));
         
         if (!response.ok) {
             if (response.status === 404) {
@@ -472,7 +494,7 @@ async function fetchStockData(query) {
 // AI 주식 파서 호출 (테스트용)
 async function requestStockParse(input) {
     try {
-        const response = await fetch(`${PYTHON_API_URL}/parse-stock-query`, {
+        const response = await fetch(buildApiUrl(PYTHON_API_URL, 'parse-stock-query'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -496,7 +518,7 @@ async function requestStockParse(input) {
 // 차트 데이터 가져오기
 async function fetchChartData(symbol, period = '1m') {
     try {
-        const response = await fetch(`${API_BASE_URL}/stock/${symbol}/chart?period=${period}`);
+        const response = await fetch(`${buildApiUrl(API_BASE_URL, `stock/${symbol}/chart`)}?period=${period}`);
         
         if (!response.ok) {
             throw new Error('차트 데이터를 가져올 수 없습니다.');
@@ -513,7 +535,7 @@ async function fetchChartData(symbol, period = '1m') {
 // 뉴스 데이터 가져오기
 async function fetchStockNews(symbol) {
     try {
-        const response = await fetch(`${API_BASE_URL}/stock/${symbol}/news`);
+        const response = await fetch(buildApiUrl(API_BASE_URL, `stock/${symbol}/news`));
         
         if (!response.ok) {
             throw new Error('뉴스를 가져올 수 없습니다.');
@@ -530,7 +552,7 @@ async function fetchStockNews(symbol) {
 // 재무제표 데이터 가져오기
 async function fetchStockFinancials(symbol) {
     try {
-        const response = await fetch(`${API_BASE_URL}/stock/${symbol}/financials`);
+        const response = await fetch(buildApiUrl(API_BASE_URL, `stock/${symbol}/financials`));
         
         if (!response.ok) {
             throw new Error('재무제표를 가져올 수 없습니다.');
@@ -1831,7 +1853,7 @@ async function loadMarketIndices(market) {
     container.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">로딩 중...</div>';
     
     try {
-        const response = await fetch(`${PYTHON_API_URL}/market-indices/${market}`);
+        const response = await fetch(buildApiUrl(PYTHON_API_URL, `market-indices/${market}`));
         if (!response.ok) {
             throw new Error('지수 데이터를 가져올 수 없습니다.');
         }
@@ -1888,7 +1910,7 @@ async function loadTopStocksByMarketCap() {
     container.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">로딩 중...</div>';
     
     try {
-        const response = await fetch(`${PYTHON_API_URL}/top-stocks-by-market-cap`);
+        const response = await fetch(buildApiUrl(PYTHON_API_URL, 'top-stocks-by-market-cap'));
         if (!response.ok) {
             throw new Error('시가총액 상위 종목 데이터를 가져올 수 없습니다.');
         }
@@ -1965,7 +1987,7 @@ async function loadEarningsCall(symbol, container) {
     container.innerHTML = '<div class="earnings-loading">로딩 중...</div>';
     
     try {
-        const response = await fetch(`${PYTHON_API_URL}/stock/${symbol}/earnings-call`);
+        const response = await fetch(buildApiUrl(PYTHON_API_URL, `stock/${symbol}/earnings-call`));
         if (!response.ok) {
             if (response.status === 404) {
                 container.innerHTML = '<div class="earnings-empty">실적발표 요약 데이터가 없습니다.</div>';
