@@ -17,6 +17,7 @@ from newspaper import Article, ArticleException
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 
+# ChromaDB 관련 함수 - optional (Vercel에서는 크기 제한으로 인해 제외)
 try:
     from .chroma_client import (
         fetch_us_stock_news,
@@ -25,14 +26,21 @@ try:
         fetch_kr_financials_from_chroma,
         fetch_earnings_call_summary,
     )
+    CHROMADB_AVAILABLE = True
 except ImportError:
-    from chroma_client import (  # type: ignore
-        fetch_us_stock_news,
-        fetch_kr_stock_news,
-        fetch_us_financials_from_chroma,
-        fetch_kr_financials_from_chroma,
-        fetch_earnings_call_summary,
-    )
+    # ChromaDB가 설치되지 않은 경우 (예: Vercel 배포 시)
+    CHROMADB_AVAILABLE = False
+    # 더미 함수 정의
+    def fetch_us_stock_news(*args, **kwargs):
+        return []
+    def fetch_kr_stock_news(*args, **kwargs):
+        return []
+    def fetch_us_financials_from_chroma(*args, **kwargs):
+        return None
+    def fetch_kr_financials_from_chroma(*args, **kwargs):
+        return None
+    def fetch_earnings_call_summary(*args, **kwargs):
+        return None
 
 try:
     from .vision_bridge import analyze_product_from_image
@@ -234,6 +242,30 @@ def search_stock(query):
         traceback.print_exc()
         return jsonify({'error': f'주가 정보 조회 중 오류가 발생했습니다: {str(e)}'}), 500
 
+@app.route('/api/stock/<symbol>', methods=['GET'])
+def get_stock_universal(symbol):
+    """범용 주식 정보 조회 (한국/미국 자동 판별)"""
+    try:
+        # 심볼 정리
+        clean_symbol = symbol.replace('.KS', '').replace('.KQ', '').upper()
+        
+        # 한국 주식인지 판별 (6자리 숫자)
+        if len(clean_symbol) == 6 and clean_symbol.isdigit():
+            # 한국 주식으로 처리
+            return get_stock(clean_symbol)
+        else:
+            # 미국 주식 또는 회사명으로 처리
+            # 먼저 한국 주식 검색 시도
+            kr_symbol = search_kr_stock_symbol(clean_symbol)
+            if kr_symbol:
+                return get_stock(kr_symbol)
+            
+            # 한국 주식이 아니면 404 반환 (미국 주식은 현재 미지원)
+            return jsonify({'error': f'"{symbol}"를 찾을 수 없습니다.'}), 404
+    except Exception as e:
+        print(f'범용 주식 조회 오류: {str(e)}')
+        return jsonify({'error': f'주가 정보 조회 중 오류가 발생했습니다: {str(e)}'}), 500
+
 @app.route('/api/kr-stock/<symbol>', methods=['GET'])
 def get_stock(symbol):
     """심볼 코드로 한국 주식 정보 가져오기"""
@@ -286,6 +318,30 @@ def get_stock(symbol):
     except Exception as e:
         print(f'오류: {str(e)}')
         return jsonify({'error': f'주가 정보 조회 중 오류가 발생했습니다: {str(e)}'}), 500
+
+@app.route('/api/stock/<symbol>/chart', methods=['GET'])
+def get_stock_chart_universal(symbol):
+    """범용 주식 차트 데이터 (한국/미국 자동 판별)"""
+    try:
+        period = request.args.get('period', '1m')
+        clean_symbol = symbol.replace('.KS', '').replace('.KQ', '').upper()
+        
+        # 한국 주식인지 판별 (6자리 숫자)
+        if len(clean_symbol) == 6 and clean_symbol.isdigit():
+            # 한국 주식으로 처리
+            return get_stock_chart(clean_symbol)
+        else:
+            # 미국 주식 또는 회사명으로 처리
+            # 먼저 한국 주식 검색 시도
+            kr_symbol = search_kr_stock_symbol(clean_symbol)
+            if kr_symbol:
+                return get_stock_chart(kr_symbol)
+            
+            # 한국 주식이 아니면 404 반환 (미국 주식 차트는 현재 미지원)
+            return jsonify({'error': f'"{symbol}" 차트 데이터를 찾을 수 없습니다.'}), 404
+    except Exception as e:
+        print(f'범용 차트 조회 오류: {str(e)}')
+        return jsonify({'error': f'차트 데이터 조회 중 오류가 발생했습니다: {str(e)}'}), 500
 
 @app.route('/api/kr-stock/<symbol>/chart', methods=['GET'])
 def get_stock_chart(symbol):
@@ -799,12 +855,35 @@ def get_stock_news_api(symbol):
         # 심볼 정리
         clean_symbol = symbol.replace('.KS', '').replace('.KQ', '').upper()
         
-        # 한국 주식인 경우 심볼 변환 필요 없음
+        # 한국 주식인 경우 ChromaDB 우선 조회
         if len(clean_symbol) == 6 and clean_symbol.isdigit():
-            # 한국 주식은 FMP에서 지원하지 않을 수 있음
-            return jsonify({'news': []})
+            # ChromaDB에서 먼저 조회
+            news_from_chroma = []
+            try:
+                news_from_chroma = fetch_kr_stock_news(clean_symbol, limit=5)
+            except Exception as chroma_error:
+                print(f"[WARN] Chroma 뉴스 조회 실패 (KR): {chroma_error}")
+            
+            if news_from_chroma:
+                print(f"[INFO] Chroma에서 {len(news_from_chroma)}개 뉴스 가져옴 (KR: {clean_symbol})")
+                response_items = []
+                for item in news_from_chroma:
+                    response_items.append(
+                        {
+                            'title': item.get('title') or '',
+                            'summary': item.get('summary') or '',
+                            'url': item.get('url') or '',
+                            'date': item.get('date') or item.get('published_at') or '',
+                            'site': item.get('source') or '',
+                        }
+                    )
+                return jsonify({'news': response_items})
+            
+            # ChromaDB 실패 시 네이버/FMP로 폴백 (기존 로직)
+            # 한국 주식은 네이버 뉴스 API 또는 FMP로 조회
+            return get_kr_stock_news(clean_symbol)
         
-        # ChromaDB에서 미리 정리된 뉴스 우선 조회
+        # 해외 주식: ChromaDB에서 미리 정리된 뉴스 우선 조회
         news_from_chroma = []
         try:
             news_from_chroma = fetch_us_stock_news(clean_symbol, limit=5)
@@ -1199,9 +1278,18 @@ def get_stock_financials(symbol):
         # 심볼 정리
         clean_symbol = symbol.replace('.KS', '').replace('.KQ', '').upper()
         
-        # 한국 주식인 경우 - DART API 사용
+        # 한국 주식인 경우 - ChromaDB 우선, DART API 폴백
         if len(clean_symbol) == 6 and clean_symbol.isdigit():
-            # DART API로 재무제표 가져오기
+            # ChromaDB에서 먼저 조회
+            try:
+                chroma_financials = fetch_kr_financials_from_chroma(clean_symbol)
+                if chroma_financials:
+                    print(f'[INFO] ChromaDB 재무 데이터 사용(KR): {clean_symbol}')
+                    return jsonify(chroma_financials)
+            except Exception as e:
+                print(f'[WARN] ChromaDB 재무 데이터 조회 실패(KR): {clean_symbol} - {e}')
+            
+            # DART API로 재무제표 가져오기 (폴백)
             if DART_API_KEY:
                 try:
                     corp_code = find_dart_corp_code(clean_symbol)

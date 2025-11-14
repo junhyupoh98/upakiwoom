@@ -541,16 +541,22 @@ async function fetchChartData(symbol, period = '1m') {
 // 뉴스 데이터 가져오기
 async function fetchStockNews(symbol) {
     try {
-        const response = await fetch(buildApiUrl(API_BASE_URL, `stock/${symbol}/news`));
+        console.log('[fetchStockNews] 요청:', { symbol, PYTHON_API_URL, API_BASE_URL });
+        const url = buildApiUrl(PYTHON_API_URL, `stock/${symbol}/news`);
+        console.log('[fetchStockNews] 최종 URL:', url);
+        const response = await fetch(url);
         
         if (!response.ok) {
-            throw new Error('뉴스를 가져올 수 없습니다.');
+            const errorText = await response.text();
+            console.error('[fetchStockNews] 응답 오류:', { status: response.status, statusText: response.statusText, errorText });
+            throw new Error(`뉴스를 가져올 수 없습니다. (${response.status})`);
         }
         
         const data = await response.json();
+        console.log('[fetchStockNews] 응답 데이터:', data);
         return data;
     } catch (error) {
-        console.error('뉴스 조회 오류:', error);
+        console.error('[fetchStockNews] 오류:', error);
         return null;
     }
 }
@@ -558,16 +564,22 @@ async function fetchStockNews(symbol) {
 // 재무제표 데이터 가져오기
 async function fetchStockFinancials(symbol) {
     try {
-        const response = await fetch(buildApiUrl(API_BASE_URL, `stock/${symbol}/financials`));
+        console.log('[fetchStockFinancials] 요청:', { symbol, PYTHON_API_URL, API_BASE_URL });
+        const url = buildApiUrl(PYTHON_API_URL, `stock/${symbol}/financials`);
+        console.log('[fetchStockFinancials] 최종 URL:', url);
+        const response = await fetch(url);
         
         if (!response.ok) {
-            throw new Error('재무제표를 가져올 수 없습니다.');
+            const errorText = await response.text();
+            console.error('[fetchStockFinancials] 응답 오류:', { status: response.status, statusText: response.statusText, errorText });
+            throw new Error(`재무제표를 가져올 수 없습니다. (${response.status})`);
         }
         
         const data = await response.json();
+        console.log('[fetchStockFinancials] 응답 데이터:', data);
         return data;
     } catch (error) {
-        console.error('재무제표 조회 오류:', error);
+        console.error('[fetchStockFinancials] 오류:', error);
         return null;
     }
 }
