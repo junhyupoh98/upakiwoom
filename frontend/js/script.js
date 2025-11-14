@@ -1,6 +1,49 @@
 // 전역 변수
-const API_BASE_URL = 'http://localhost:3000/api';
-const PYTHON_API_URL = 'http://localhost:5000/api';
+// 환경에 따라 API URL 자동 설정
+function getApiUrls() {
+    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    
+    // AWS 백엔드 URL (Elastic Beanstalk 사용 시)
+    // config.js 파일에서 설정하거나, window.AWS_BACKEND_URL로 설정
+    // config.js 파일 예시: window.AWS_BACKEND_URL = 'https://your-eb-app.elasticbeanstalk.com';
+    const AWS_BACKEND_URL = window.AWS_BACKEND_URL || null;
+    
+    const API_BASE_URL = isProduction 
+        ? (AWS_BACKEND_URL ? `${AWS_BACKEND_URL}/api` : `${window.location.origin}/api`)  // AWS 백엔드 또는 Vercel
+        : 'http://localhost:3000/api';     // 로컬: Node 서버
+    
+    const PYTHON_API_URL = isProduction 
+        ? (AWS_BACKEND_URL ? `${AWS_BACKEND_URL}/api` : `${window.location.origin}/api`)  // AWS 백엔드 또는 Vercel
+        : 'http://localhost:5000/api';     // 로컬: Python Flask 서버
+    
+    return { API_BASE_URL, PYTHON_API_URL };
+}
+
+// API URL 변수 (초기값 설정)
+let API_BASE_URL = getApiUrls().API_BASE_URL;
+let PYTHON_API_URL = getApiUrls().PYTHON_API_URL;
+
+// API URL을 동적으로 가져오는 함수 (config.js 로드 후 실행)
+function initializeApiUrls() {
+    const urls = getApiUrls();
+    // 변수 업데이트
+    API_BASE_URL = urls.API_BASE_URL;
+    PYTHON_API_URL = urls.PYTHON_API_URL;
+    console.log('API URLs 설정:', { 
+        API_BASE_URL: API_BASE_URL, 
+        PYTHON_API_URL: PYTHON_API_URL,
+        AWS_BACKEND_URL: window.AWS_BACKEND_URL,
+        isProduction: window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+    });
+}
+
+// 초기화 (DOMContentLoaded 또는 즉시 실행)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApiUrls);
+} else {
+    // 이미 로드된 경우 즉시 실행
+    initializeApiUrls();
+}
 
 // 차트 인스턴스 보관
 const chartInstances = {};
