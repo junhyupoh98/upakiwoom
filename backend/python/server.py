@@ -23,6 +23,7 @@ try:
         fetch_kr_stock_news,
         fetch_us_financials_from_chroma,
         fetch_kr_financials_from_chroma,
+        fetch_earnings_call_summary,
     )
 except ImportError:
     from chroma_client import (  # type: ignore
@@ -30,6 +31,7 @@ except ImportError:
         fetch_kr_stock_news,
         fetch_us_financials_from_chroma,
         fetch_kr_financials_from_chroma,
+        fetch_earnings_call_summary,
     )
 
 try:
@@ -805,7 +807,7 @@ def get_stock_news_api(symbol):
         # ChromaDB에서 미리 정리된 뉴스 우선 조회
         news_from_chroma = []
         try:
-            news_from_chroma = fetch_us_stock_news(clean_symbol, limit=3)
+            news_from_chroma = fetch_us_stock_news(clean_symbol, limit=5)
         except Exception as chroma_error:
             print(f"[WARN] Chroma 뉴스 조회 실패: {chroma_error}")
 
@@ -916,7 +918,7 @@ def get_kr_stock_news(symbol):
         # ChromaDB에서 미리 정리된 뉴스 우선 조회
         news_from_chroma = []
         try:
-            news_from_chroma = fetch_kr_stock_news(clean_symbol, limit=10)
+            news_from_chroma = fetch_kr_stock_news(clean_symbol, limit=5)
         except Exception as chroma_error:
             print(f"[WARN] Chroma 뉴스 조회 실패 (KR): {chroma_error}")
         
@@ -1172,6 +1174,24 @@ def fetch_segment_data(ticker: str) -> Optional[Dict[str, Any]]:
         return None
 
 # 재무제표 API 엔드포인트
+@app.route('/api/stock/<symbol>/earnings-call', methods=['GET'])
+def get_earnings_call(symbol):
+    """실적발표 요약 조회 API"""
+    try:
+        clean_symbol = symbol.upper().strip()
+        
+        # 해외 주식만 지원 (한국 주식은 추후 추가 가능)
+        earnings_data = fetch_earnings_call_summary(clean_symbol)
+        
+        if earnings_data:
+            return jsonify(earnings_data)
+        else:
+            return jsonify({'error': '실적발표 요약을 찾을 수 없습니다.'}), 404
+    
+    except Exception as e:
+        print(f'실적발표 요약 조회 오류: {e}')
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/stock/<symbol>/financials', methods=['GET'])
 def get_stock_financials(symbol):
     """주식 재무제표 조회 API"""

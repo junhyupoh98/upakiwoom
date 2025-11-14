@@ -541,6 +541,7 @@ function addFinancialMessage(companyName, symbol, financialData) {
             <div class="chart-slider-tabs">
                 <button class="chart-slider-tab active" data-chart="financial">재무제표</button>
                 ${hasSegments ? `<button class="chart-slider-tab" data-chart="segment">사업 부문별 매출</button>` : ''}
+                <button class="chart-slider-tab" data-chart="earnings" data-symbol="${symbol}">어닝콜</button>
             </div>
             <div class="chart-slider-container">
                 <div class="chart-slide active" data-chart="financial">
@@ -556,6 +557,11 @@ function addFinancialMessage(companyName, symbol, financialData) {
                     ${financialData.segmentDate ? `<div class="segment-date">기준일: ${financialData.segmentDate}</div>` : ''}
                 </div>
                 ` : ''}
+                <div class="chart-slide" data-chart="earnings" id="earnings-slide-${symbol}">
+                    <div class="earnings-call-container">
+                        <div class="earnings-loading">로딩 중...</div>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="financial-summary">
@@ -634,6 +640,16 @@ function addFinancialMessage(companyName, symbol, financialData) {
                         console.log('세그먼트 데이터:', financialData.segments);
                         renderSegmentChart(segmentChartId, financialData.segments, financialData.segmentCurrency || 'USD');
                         segmentCanvas.dataset.rendered = 'true';
+                    }
+                }
+                
+                // 어닝콜이 처음 보일 때 로드
+                if (chartType === 'earnings') {
+                    const earningsSlide = financialSection.querySelector('.chart-slide[data-chart="earnings"]');
+                    const earningsContainer = earningsSlide.querySelector('.earnings-call-container');
+                    if (earningsContainer && !earningsContainer.dataset.loaded) {
+                        loadEarningsCall(symbol, earningsContainer);
+                        earningsContainer.dataset.loaded = 'true';
                     }
                 }
             });
@@ -1897,5 +1913,127 @@ function createTopStockItem(stock) {
     });
     
     return item;
+}
+
+// 어닝콜 데이터 로드 함수
+async function loadEarningsCall(symbol, container) {
+    if (!container) return;
+    
+    container.innerHTML = '<div class="earnings-loading">로딩 중...</div>';
+    
+    try {
+        const response = await fetch(`${PYTHON_API_URL}/stock/${symbol}/earnings-call`);
+        if (!response.ok) {
+            if (response.status === 404) {
+                container.innerHTML = '<div class="earnings-empty">실적발표 요약 데이터가 없습니다.</div>';
+            } else {
+                throw new Error('어닝콜 데이터를 가져올 수 없습니다.');
+            }
+            return;
+        }
+        
+        const earningsData = await response.json();
+        renderEarningsCall(earningsData, container);
+    } catch (error) {
+        console.error('어닝콜 로드 오류:', error);
+        container.innerHTML = '<div class="earnings-error">데이터를 불러올 수 없습니다.</div>';
+    }
+}
+
+// 어닝콜 렌더링 함수
+function renderEarningsCall(data, container) {
+    if (!data || !container) return;
+    
+    const dateStr = data.date ? new Date(data.date).toLocaleDateString('ko-KR') : '';
+    const period = data.year && data.quarter ? `${data.year} Q${data.quarter}` : '';
+    
+    let html = `
+        <div class="earnings-call-content">
+            ${dateStr || period ? `<div class="earnings-header">
+                <h5>${period || dateStr}</h5>
+                ${dateStr ? `<span class="earnings-date">${dateStr}</span>` : ''}
+            </div>` : ''}
+    `;
+    
+    // 핵심 요약
+    if (data.core_summary && data.core_summary.length > 0) {
+        html += `
+            <div class="earnings-section">
+                <h6 class="earnings-section-title">핵심 요약</h6>
+                <ul class="earnings-list">
+                    ${data.core_summary.map(item => `<li>${item}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
+    // 투자하기 전에 알아두면 좋은 포인트
+    if (data.investor_points && data.investor_points.length > 0) {
+        html += `
+            <div class="earnings-section">
+                <h6 class="earnings-section-title">투자하기 전에 알아두면 좋은 포인트</h6>
+                <ul class="earnings-list">
+                    ${data.investor_points.map(item => `<li>${item}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
+    // 세부 섹션 요약
+    if (data.section_summary) {
+        html += `
+            <div class="earnings-section">
+                <h6 class="earnings-section-title">세부 섹션 요약</h6>
+                <div class="earnings-summary-text">${data.section_summary}</div>
+            </div>
+        `;
+    }
+    
+    // 가이던스
+    if (data.guidance && data.guidance.length > 0) {
+        html += `
+            <div class="earnings-section">
+                <h6 class="earnings-section-title">가이던스</h6>
+                <ul class="earnings-list">
+                    ${data.guidance.map(item => `<li>${item}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
+    // 실적발표
+    if (data.release && data.release.length > 0) {
+        html += `
+            <div class="earnings-section">
+                <h6 class="earnings-section-title">실적발표</h6>
+                <ul class="earnings-list">
+                    ${data.release.map(item => `<li>${item}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
+    // Q&A
+    if (data.qa && data.qa.length > 0) {
+        html += `
+            <div class="earnings-section">
+                <h6 class="earnings-section-title">Q&A</h6>
+                <ul class="earnings-list">
+                    ${data.qa.map(item => `<li>${item}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
+    if (data.source_url) {
+        html += `
+            <div class="earnings-source">
+                <a href="${data.source_url}" target="_blank" rel="noopener noreferrer">출처 보기</a>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
 }
 

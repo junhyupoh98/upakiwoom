@@ -30,12 +30,14 @@ KR_NEWS_COLLECTION = os.getenv(
 
 US_FIN_COLLECTION = os.getenv("CHROMADB_US_FIN_COLLECTION", "USfund_financials")
 KR_FIN_COLLECTION = os.getenv("CHROMADB_KR_FIN_COLLECTION", "KRfund_financials")
+EARNINGS_CALL_COLLECTION = os.getenv("CHROMADB_EARNINGS_CALL_COLLECTION", "earnings_call_summary_ko")
 
 _client: Optional[ClientAPI] = None
 _us_news_collection: Optional[Collection] = None
 _kr_news_collection: Optional[Collection] = None
 _us_fin_collection: Optional[Collection] = None
 _kr_fin_collection: Optional[Collection] = None
+_earnings_call_collection: Optional[Collection] = None
 
 
 def get_chroma_client() -> ClientAPI:
@@ -74,6 +76,18 @@ def get_kr_news_collection() -> Collection:
         client = get_chroma_client()
         _kr_news_collection = client.get_collection(KR_NEWS_COLLECTION)
     return _kr_news_collection
+
+def get_earnings_call_collection() -> Collection:
+    """실적발표 요약이 저장된 컬렉션 핸들 반환"""
+    global _earnings_call_collection
+    if _earnings_call_collection is None:
+        client = get_chroma_client()
+        try:
+            _earnings_call_collection = client.get_collection(EARNINGS_CALL_COLLECTION)
+        except Exception as exc:
+            print(f"[WARN] Earnings call collection 로드 실패: {exc}")
+            raise
+    return _earnings_call_collection
 
 
 def get_us_fin_collection() -> Collection:
@@ -159,7 +173,8 @@ def fetch_us_stock_news(symbol: str, limit: int = 3) -> List[Dict[str, Any]]:
     where_filter = {"ticker": symbol.upper()}
 
     # 충분한 개수를 가져와 날짜 기준으로 최신순 정렬
-    fetch_limit = max(limit * 3, limit)
+    # ChromaDB는 기본적으로 삽입 순서나 임의 순서로 반환할 수 있으므로 충분히 가져와서 정렬 필요
+    fetch_limit = max(limit * 10, 50)  # 최신 뉴스를 놓치지 않도록 충분히 가져오기
     result = collection.get(where=where_filter, limit=fetch_limit)
     documents = result.get("documents") or []
     metadatas = result.get("metadatas") or []
@@ -185,11 +200,13 @@ def fetch_us_stock_news(symbol: str, limit: int = 3) -> List[Dict[str, Any]]:
             }
         )
 
+    # 날짜 기준으로 정렬 (date_int > published_at > date)
+    # date_int가 None이면 0으로 처리하여 최신순 정렬 보장
     news_items.sort(
         key=lambda item: (
-            item.get("date_int"),
-            item.get("published_at"),
-            item.get("raw_metadata", {}).get("date"),
+            item.get("date_int") if item.get("date_int") is not None else 0,
+            item.get("published_at") or "",
+            item.get("raw_metadata", {}).get("date") or "",
         ),
         reverse=True,
     )
@@ -226,7 +243,8 @@ def fetch_kr_stock_news(symbol: str, limit: int = 3) -> List[Dict[str, Any]]:
     where_filter = {"ticker6": clean_symbol}
 
     # 충분한 개수를 가져와 날짜 기준으로 최신순 정렬
-    fetch_limit = max(limit * 3, limit)
+    # ChromaDB는 기본적으로 삽입 순서나 임의 순서로 반환할 수 있으므로 충분히 가져와서 정렬 필요
+    fetch_limit = max(limit * 10, 50)  # 최신 뉴스를 놓치지 않도록 충분히 가져오기
     try:
         result = collection.get(where=where_filter, limit=fetch_limit)
     except Exception as exc:
@@ -270,6 +288,97 @@ def fetch_kr_stock_news(symbol: str, limit: int = 3) -> List[Dict[str, Any]]:
     )
 
     return news_items[:limit]
+
+
+def fetch_earnings_call_summary(symbol: str) -> Optional[Dict[str, Any]]:
+    """
+    실적발표 요약 데이터 반환 (최신 1개)
+    
+    Args:
+        symbol: 조회할 티커(예: AAPL, TSLA). 대소문자 무관.
+    
+    Returns:
+        실적발표 요약 정보를 담은 dict 또는 None
+    """
+    if not symbol:
+        return None
+    
+    try:
+        collection = get_earnings_call_collection()
+    except Exception as exc:
+        print(f"[WARN] Earnings call collection 조회 실패: {exc}")
+        return None
+    
+    where_filter = {"symbol": symbol.upper()}
+    
+    try:
+        # 충분히 가져와서 날짜 기준 최신순 정렬
+        result = collection.get(where=where_filter, limit=10)
+        documents = result.get("documents") or []
+        metadatas = result.get("metadatas") or []
+        
+        if not documents or not metadatas:
+            return None
+        
+        # 날짜 기준으로 정렬 (최신순)
+        items = []
+        for idx, doc in enumerate(documents):
+            metadata_item = metadatas[idx] if idx < len(metadatas) else {}
+            items.append({
+                "metadata": metadata_item,
+                "document": doc,
+                "date": metadata_item.get("date") or "",
+                "year": metadata_item.get("year") or "",
+                "quarter": metadata_item.get("quarter") or "",
+            })
+        
+        # 날짜 기준 내림차순 정렬
+        items.sort(
+            key=lambda x: (
+                x["year"] or "",
+                x["quarter"] or "",
+                x["date"] or "",
+            ),
+            reverse=True
+        )
+        
+        # 최신 1개 선택
+        if not items:
+            return None
+        
+        metadata = items[0]["metadata"]
+        document = items[0]["document"]
+        
+        # JSON 필드 파싱
+        def parse_json_field(field_value):
+            if not field_value:
+                return []
+            if isinstance(field_value, str):
+                try:
+                    return json.loads(field_value)
+                except:
+                    return []
+            return field_value if isinstance(field_value, list) else []
+        
+        earnings_data = {
+            "symbol": metadata.get("symbol"),
+            "date": metadata.get("date"),
+            "year": metadata.get("year"),
+            "quarter": metadata.get("quarter"),
+            "section_summary": metadata.get("section_summary") or document,
+            "core_summary": parse_json_field(metadata.get("core_summary_json")),
+            "investor_points": parse_json_field(metadata.get("investor_points_json")),
+            "guidance": parse_json_field(metadata.get("guidance_json")),
+            "release": parse_json_field(metadata.get("release_json")),
+            "qa": parse_json_field(metadata.get("qa_json")),
+            "source_url": metadata.get("source_url"),
+            "raw_metadata": metadata,
+        }
+        
+        return earnings_data
+    except Exception as e:
+        print(f"[ERROR] Earnings call 조회 오류: {symbol} - {e}")
+        return None
 
 
 def _parse_numeric(value: Any) -> Optional[float]:
@@ -814,6 +923,7 @@ def fetch_kr_financials_from_chroma(symbol: str) -> Optional[Dict[str, Any]]:
 __all__ = [
     "fetch_us_stock_news",
     "fetch_kr_stock_news",
+    "fetch_earnings_call_summary",
     "get_us_news_collection",
     "get_kr_news_collection",
     "get_chroma_client",
