@@ -18,18 +18,55 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 
 # ChromaDB 관련 함수 - optional (Vercel에서는 크기 제한으로 인해 제외)
+CHROMADB_AVAILABLE = False
 try:
-    from .chroma_client import (
-        fetch_us_stock_news,
-        fetch_kr_stock_news,
-        fetch_us_financials_from_chroma,
-        fetch_kr_financials_from_chroma,
-        fetch_earnings_call_summary,
-    )
-    CHROMADB_AVAILABLE = True
-except ImportError:
-    # ChromaDB가 설치되지 않은 경우 (예: Vercel 배포 시)
+    # 상대 import 시도
+    try:
+        from .chroma_client import (
+            fetch_us_stock_news,
+            fetch_kr_stock_news,
+            fetch_us_financials_from_chroma,
+            fetch_kr_financials_from_chroma,
+            fetch_earnings_call_summary,
+        )
+        CHROMADB_AVAILABLE = True
+        print('[OK] ChromaDB 모듈 로드 성공 (상대 import)')
+    except ImportError as e1:
+        # 절대 import 시도
+        try:
+            from backend.python.chroma_client import (
+                fetch_us_stock_news,
+                fetch_kr_stock_news,
+                fetch_us_financials_from_chroma,
+                fetch_kr_financials_from_chroma,
+                fetch_earnings_call_summary,
+            )
+            CHROMADB_AVAILABLE = True
+            print('[OK] ChromaDB 모듈 로드 성공 (절대 import)')
+        except ImportError as e2:
+            # 직접 import 시도
+            try:
+                import sys
+                import os
+                sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+                from chroma_client import (
+                    fetch_us_stock_news,
+                    fetch_kr_stock_news,
+                    fetch_us_financials_from_chroma,
+                    fetch_kr_financials_from_chroma,
+                    fetch_earnings_call_summary,
+                )
+                CHROMADB_AVAILABLE = True
+                print('[OK] ChromaDB 모듈 로드 성공 (직접 import)')
+            except ImportError as e3:
+                print(f'[WARN] ChromaDB 모듈 로드 실패 - 상대: {e1}, 절대: {e2}, 직접: {e3}')
+                raise e3
+except Exception as e:
+    # ChromaDB가 설치되지 않은 경우 또는 다른 오류 (예: Vercel 배포 시)
     CHROMADB_AVAILABLE = False
+    print(f'[WARN] ChromaDB 사용 불가능: {e}')
+    import traceback
+    traceback.print_exc()
     # 더미 함수 정의
     def fetch_us_stock_news(*args, **kwargs):
         return []
