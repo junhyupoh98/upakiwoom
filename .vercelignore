@@ -32,7 +32,7 @@ testimages/
 *.sh
 *.ipynb
 backend/
-api/
+# api/ 주석 처리 - 프록시 함수를 위해 필요
 requirements.txt
 requirements-*.txt
 application.py

@@ -29,14 +29,20 @@ function buildApiUrl(baseUrl, path) {
     const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
     
     // 프로덕션에서 프록시 사용 시
-    if (isProduction && baseUrl.includes('/api/proxy?path=')) {
+    if (isProduction && baseUrl.includes('/api/proxy')) {
         // 경로를 URL 인코딩하여 프록시 파라미터로 전달
         const encodedPath = encodeURIComponent(path);
-        return `${baseUrl}${encodedPath}`;
+        // baseUrl이 이미 '?path='로 끝나는지 확인
+        const separator = baseUrl.includes('?') ? '&' : '?';
+        const url = `${baseUrl}${separator}path=${encodedPath}`;
+        console.log('[buildApiUrl] 프록시 URL 생성:', { baseUrl, path, encodedPath, url });
+        return url;
     }
     
     // 로컬 또는 직접 URL 사용 시
-    return `${baseUrl}/${path}`;
+    const url = `${baseUrl}/${path}`.replace(/\/+/g, '/').replace(':/', '://');
+    console.log('[buildApiUrl] 직접 URL 생성:', { baseUrl, path, url });
+    return url;
 }
 
 // API URL을 동적으로 가져오는 함수 (config.js 로드 후 실행)
