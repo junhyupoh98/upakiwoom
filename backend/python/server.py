@@ -858,26 +858,35 @@ def get_stock_news_api(symbol):
         # 한국 주식인 경우 ChromaDB 우선 조회
         if len(clean_symbol) == 6 and clean_symbol.isdigit():
             # ChromaDB에서 먼저 조회
-            news_from_chroma = []
-            try:
-                news_from_chroma = fetch_kr_stock_news(clean_symbol, limit=5)
-            except Exception as chroma_error:
-                print(f"[WARN] Chroma 뉴스 조회 실패 (KR): {chroma_error}")
-            
-            if news_from_chroma:
-                print(f"[INFO] Chroma에서 {len(news_from_chroma)}개 뉴스 가져옴 (KR: {clean_symbol})")
-                response_items = []
-                for item in news_from_chroma:
-                    response_items.append(
-                        {
-                            'title': item.get('title') or '',
-                            'summary': item.get('summary') or '',
-                            'url': item.get('url') or '',
-                            'date': item.get('date') or item.get('published_at') or '',
-                            'site': item.get('source') or '',
-                        }
-                    )
-                return jsonify({'news': response_items})
+            if CHROMADB_AVAILABLE:
+                news_from_chroma = []
+                try:
+                    print(f'[DEBUG] ChromaDB 뉴스 조회 시작(KR): {clean_symbol}')
+                    news_from_chroma = fetch_kr_stock_news(clean_symbol, limit=5)
+                    print(f'[DEBUG] ChromaDB 뉴스 조회 결과(KR): {clean_symbol}, {len(news_from_chroma)}개')
+                except Exception as chroma_error:
+                    print(f"[WARN] Chroma 뉴스 조회 실패 (KR): {chroma_error}")
+                    import traceback
+                    traceback.print_exc()
+                
+                if news_from_chroma:
+                    print(f"[INFO] Chroma에서 {len(news_from_chroma)}개 뉴스 가져옴 (KR: {clean_symbol})")
+                    response_items = []
+                    for item in news_from_chroma:
+                        response_items.append(
+                            {
+                                'title': item.get('title') or '',
+                                'summary': item.get('summary') or '',
+                                'url': item.get('url') or '',
+                                'date': item.get('date') or item.get('published_at') or '',
+                                'site': item.get('source') or '',
+                            }
+                        )
+                    return jsonify({'news': response_items})
+                else:
+                    print(f'[WARN] ChromaDB에서 뉴스를 찾을 수 없음(KR): {clean_symbol}')
+            else:
+                print(f'[WARN] ChromaDB가 사용 불가능함 (KR): {clean_symbol}')
             
             # ChromaDB 실패 시 네이버/FMP로 폴백 (기존 로직)
             # 한국 주식은 네이버 뉴스 API 또는 FMP로 조회
@@ -1281,13 +1290,21 @@ def get_stock_financials(symbol):
         # 한국 주식인 경우 - ChromaDB 우선, DART API 폴백
         if len(clean_symbol) == 6 and clean_symbol.isdigit():
             # ChromaDB에서 먼저 조회
-            try:
-                chroma_financials = fetch_kr_financials_from_chroma(clean_symbol)
-                if chroma_financials:
-                    print(f'[INFO] ChromaDB 재무 데이터 사용(KR): {clean_symbol}')
-                    return jsonify(chroma_financials)
-            except Exception as e:
-                print(f'[WARN] ChromaDB 재무 데이터 조회 실패(KR): {clean_symbol} - {e}')
+            if CHROMADB_AVAILABLE:
+                try:
+                    print(f'[DEBUG] ChromaDB 재무 데이터 조회 시작(KR): {clean_symbol}')
+                    chroma_financials = fetch_kr_financials_from_chroma(clean_symbol)
+                    if chroma_financials:
+                        print(f'[INFO] ChromaDB 재무 데이터 사용(KR): {clean_symbol}, 데이터 크기: {len(chroma_financials.get("chartData", []))}개')
+                        return jsonify(chroma_financials)
+                    else:
+                        print(f'[WARN] ChromaDB에서 재무 데이터를 찾을 수 없음(KR): {clean_symbol}')
+                except Exception as e:
+                    print(f'[WARN] ChromaDB 재무 데이터 조회 실패(KR): {clean_symbol} - {e}')
+                    import traceback
+                    traceback.print_exc()
+            else:
+                print(f'[WARN] ChromaDB가 사용 불가능함 (KR): {clean_symbol}')
             
             # DART API로 재무제표 가져오기 (폴백)
             if DART_API_KEY:
